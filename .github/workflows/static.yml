@@ -1,0 +1,824 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Loop Station</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Courier New', monospace;
+            background: linear-gradient(135deg, #1a1a2e, #16213e, #0f3460);
+            color: #e0e0e0;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            display: grid;
+            grid-template-columns: 300px 1fr 300px;
+            gap: 20px;
+        }
+
+        .panel {
+            background: rgba(0, 0, 0, 0.4);
+            border: 2px solid #00d4ff;
+            border-radius: 10px;
+            padding: 20px;
+            backdrop-filter: blur(5px);
+        }
+
+        .header {
+            grid-column: 1 / -1;
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        h1 {
+            font-size: 2.5em;
+            color: #00d4ff;
+            text-shadow: 0 0 20px #00d4ff;
+            margin-bottom: 10px;
+        }
+
+        .subtitle {
+            color: #ff006e;
+            font-size: 1.2em;
+        }
+
+        .status-panel {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .stat {
+            background: rgba(0, 212, 255, 0.1);
+            padding: 10px;
+            border-radius: 5px;
+            border-left: 3px solid #00d4ff;
+        }
+
+        .stat-label {
+            font-size: 0.9em;
+            opacity: 0.8;
+            margin-bottom: 5px;
+        }
+
+        .stat-value {
+            font-size: 1.3em;
+            font-weight: bold;
+            color: #00d4ff;
+        }
+
+        .stat.critical .stat-value {
+            color: #ff006e;
+            animation: pulse 1s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 8px;
+            background: rgba(0, 0, 0, 0.5);
+            border-radius: 4px;
+            overflow: hidden;
+            margin-top: 5px;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #00d4ff, #0099ff);
+            transition: width 0.3s;
+        }
+
+        .actions-panel {
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+
+        .action-card {
+            background: rgba(0, 212, 255, 0.05);
+            border: 1px solid rgba(0, 212, 255, 0.3);
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 10px;
+            cursor: pointer;
+            transition: all 0.3s;
+            position: relative;
+        }
+
+        .action-card:hover:not(.locked):not(.queued) {
+            border-color: #00d4ff;
+            background: rgba(0, 212, 255, 0.15);
+            transform: translateX(5px);
+        }
+
+        .action-card.locked {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+
+        .action-card.queued {
+            border-color: #ffb703;
+            background: rgba(255, 183, 3, 0.1);
+        }
+
+        .action-card.new::after {
+            content: 'NEW';
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: #ff006e;
+            color: white;
+            padding: 2px 8px;
+            border-radius: 3px;
+            font-size: 0.7em;
+            font-weight: bold;
+        }
+
+        .action-title {
+            font-size: 1.1em;
+            font-weight: bold;
+            color: #00d4ff;
+            margin-bottom: 5px;
+        }
+
+        .action-desc {
+            font-size: 0.9em;
+            opacity: 0.8;
+            margin-bottom: 8px;
+        }
+
+        .action-info {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.85em;
+        }
+
+        .action-time {
+            color: #ffb703;
+        }
+
+        .action-xp {
+            color: #06ffa5;
+        }
+
+        .log-panel {
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+
+        .log-entry {
+            padding: 8px;
+            margin-bottom: 5px;
+            border-left: 2px solid #00d4ff;
+            background: rgba(0, 0, 0, 0.3);
+            font-size: 0.9em;
+            border-radius: 3px;
+        }
+
+        .log-entry.death {
+            border-color: #ff006e;
+            color: #ff006e;
+        }
+
+        .log-entry.level {
+            border-color: #06ffa5;
+            color: #06ffa5;
+        }
+
+        .queue-display {
+            margin-top: 20px;
+            padding: 15px;
+            background: rgba(255, 183, 3, 0.1);
+            border: 1px solid #ffb703;
+            border-radius: 8px;
+        }
+
+        .queue-title {
+            font-weight: bold;
+            color: #ffb703;
+            margin-bottom: 10px;
+        }
+
+        .queue-item {
+            padding: 5px;
+            margin: 5px 0;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 3px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .current-action {
+            background: #00d4ff;
+            color: #000;
+            padding: 10px;
+            border-radius: 5px;
+            margin-bottom: 10px;
+            font-weight: bold;
+        }
+
+        .button {
+            padding: 10px 20px;
+            background: linear-gradient(135deg, #ff006e, #8338ec);
+            border: none;
+            border-radius: 5px;
+            color: white;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s;
+            margin: 5px;
+        }
+
+        .button:hover {
+            transform: scale(1.05);
+            box-shadow: 0 0 20px rgba(255, 0, 110, 0.5);
+        }
+
+        .button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .control-buttons {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+            flex-wrap: wrap;
+        }
+
+        .death-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.9);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+
+        .death-overlay.show {
+            display: flex;
+        }
+
+        .death-box {
+            background: linear-gradient(135deg, #1a1a2e, #16213e);
+            border: 3px solid #ff006e;
+            border-radius: 15px;
+            padding: 40px;
+            text-align: center;
+            max-width: 500px;
+            box-shadow: 0 0 50px rgba(255, 0, 110, 0.5);
+        }
+
+        .death-title {
+            font-size: 2em;
+            color: #ff006e;
+            margin-bottom: 20px;
+        }
+
+        .death-message {
+            font-size: 1.2em;
+            margin-bottom: 30px;
+            line-height: 1.6;
+        }
+
+        .death-stats {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+        }
+
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: rgba(0, 0, 0, 0.3);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #00d4ff;
+            border-radius: 4px;
+        }
+
+        .mastery-indicator {
+            background: rgba(6, 255, 165, 0.2);
+            padding: 3px 8px;
+            border-radius: 3px;
+            font-size: 0.8em;
+            color: #06ffa5;
+            display: inline-block;
+            margin-top: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header panel">
+            <h1>⟳ LOOP STATION ⟳</h1>
+            <p class="subtitle">Survive. Die. Loop. Improve.</p>
+            <div style="margin-top: 15px; display: flex; justify-content: center; gap: 20px;">
+                <div><strong>Loop #<span id="loopNumber">1</span></strong></div>
+                <div><strong>Survived: <span id="survivalTime">0</span>s</strong></div>
+                <div><strong>Total XP: <span id="totalXp">0</span></strong></div>
+            </div>
+        </div>
+
+        <div class="panel status-panel">
+            <h2 style="color: #00d4ff; margin-bottom: 15px;">⚠ Life Support</h2>
+            
+            <div class="stat" id="oxygenStat">
+                <div class="stat-label">🫁 Oxygen</div>
+                <div class="stat-value"><span id="oxygen">100</span>%</div>
+                <div class="progress-bar">
+                    <div class="progress-fill" id="oxygenBar" style="width: 100%"></div>
+                </div>
+            </div>
+
+            <div class="stat" id="energyStat">
+                <div class="stat-label">⚡ Energy</div>
+                <div class="stat-value"><span id="energy">100</span>%</div>
+                <div class="progress-bar">
+                    <div class="progress-fill" id="energyBar" style="width: 100%"></div>
+                </div>
+            </div>
+
+            <div class="stat" id="healthStat">
+                <div class="stat-label">💚 Health</div>
+                <div class="stat-value"><span id="health">100</span>%</div>
+                <div class="progress-bar">
+                    <div class="progress-fill" id="healthBar" style="width: 100%"></div>
+                </div>
+            </div>
+
+            <div class="queue-display" id="queueDisplay" style="display: none;">
+                <div class="queue-title">Action Queue</div>
+                <div id="currentAction" class="current-action" style="display: none;"></div>
+                <div id="queueList"></div>
+                <div class="control-buttons">
+                    <button class="button" onclick="clearQueue()">Clear Queue</button>
+                </div>
+            </div>
+
+            <div class="control-buttons" style="margin-top: 20px;">
+                <button class="button" onclick="pauseGame()">⏸ Pause</button>
+                <button class="button" onclick="loopNow()" id="loopBtn" style="display: none;">⟳ Loop Now</button>
+            </div>
+        </div>
+
+        <div class="panel actions-panel">
+            <h2 style="color: #00d4ff; margin-bottom: 15px;">📋 Available Actions</h2>
+            <div id="actionsContainer"></div>
+        </div>
+
+        <div class="panel log-panel">
+            <h2 style="color: #00d4ff; margin-bottom: 15px;">📜 Station Log</h2>
+            <div id="logContainer"></div>
+        </div>
+    </div>
+
+    <div class="death-overlay" id="deathOverlay">
+        <div class="death-box">
+            <div class="death-title">💀 SYSTEM FAILURE 💀</div>
+            <div class="death-message" id="deathMessage"></div>
+            <div class="death-stats">
+                <div style="margin-bottom: 10px;">Survived: <strong id="deathTime">0</strong> seconds</div>
+                <div style="margin-bottom: 10px;">Actions Completed: <strong id="deathActions">0</strong></div>
+                <div>XP Gained: <strong style="color: #06ffa5;" id="deathXp">0</strong></div>
+            </div>
+            <button class="button" onclick="startNewLoop()">⟳ START NEW LOOP</button>
+        </div>
+    </div>
+
+    <script>
+        const gameState = {
+            oxygen: 100,
+            energy: 100,
+            health: 100,
+            time: 0,
+            loopNumber: 1,
+            totalXp: 0,
+            actionsCompleted: 0,
+            isPaused: false,
+            queue: [],
+            currentAction: null,
+            currentActionProgress: 0,
+            actionMastery: {},
+            unlockedActions: new Set(['explore', 'rest', 'checkPanel'])
+        };
+
+        const actions = {
+            explore: {
+                id: 'explore',
+                name: 'Explore Corridor',
+                desc: 'Search the abandoned station for supplies',
+                time: 5,
+                xp: 10,
+                costs: { energy: 5 },
+                effects: { health: 5 },
+                unlocks: ['scavenge'],
+                persistent: false
+            },
+            scavenge: {
+                id: 'scavenge',
+                name: 'Scavenge Supplies',
+                desc: 'Gather useful materials from debris',
+                time: 8,
+                xp: 15,
+                costs: { energy: 10 },
+                effects: { energy: 15 },
+                unlocks: ['fixOxygen'],
+                persistent: false
+            },
+            rest: {
+                id: 'rest',
+                name: 'Rest',
+                desc: 'Conserve energy and recover',
+                time: 3,
+                xp: 5,
+                costs: { oxygen: 2 },
+                effects: { energy: 10, health: 5 },
+                persistent: false
+            },
+            checkPanel: {
+                id: 'checkPanel',
+                name: 'Check Control Panel',
+                desc: 'Inspect the station systems',
+                time: 4,
+                xp: 8,
+                costs: { energy: 3 },
+                unlocks: ['repairPower'],
+                persistent: false
+            },
+            fixOxygen: {
+                id: 'fixOxygen',
+                name: 'Repair Oxygen Filter',
+                desc: 'Fix the life support system',
+                time: 15,
+                xp: 30,
+                costs: { energy: 20 },
+                effects: { oxygen: 30 },
+                unlocks: ['engineRoom'],
+                persistent: true,
+                masteryBonus: 0.2
+            },
+            repairPower: {
+                id: 'repairPower',
+                name: 'Repair Power Grid',
+                desc: 'Restore power to critical systems',
+                time: 20,
+                xp: 40,
+                costs: { energy: 25, oxygen: 10 },
+                effects: { energy: 40 },
+                unlocks: ['medBay'],
+                persistent: true,
+                masteryBonus: 0.25
+            },
+            engineRoom: {
+                id: 'engineRoom',
+                name: 'Access Engine Room',
+                desc: 'Venture into the station core',
+                time: 12,
+                xp: 35,
+                costs: { energy: 15, oxygen: 10 },
+                unlocks: ['reactorRepair'],
+                persistent: false
+            },
+            medBay: {
+                id: 'medBay',
+                name: 'Reach Medical Bay',
+                desc: 'Find medical supplies',
+                time: 10,
+                xp: 25,
+                costs: { energy: 12, oxygen: 8 },
+                effects: { health: 30 },
+                unlocks: ['synthesize'],
+                persistent: false
+            },
+            reactorRepair: {
+                id: 'reactorRepair',
+                name: 'Repair Reactor Core',
+                desc: 'Restore the main reactor',
+                time: 30,
+                xp: 100,
+                costs: { energy: 40, oxygen: 20 },
+                effects: { energy: 80 },
+                persistent: true,
+                masteryBonus: 0.3
+            },
+            synthesize: {
+                id: 'synthesize',
+                name: 'Synthesize Medicine',
+                desc: 'Create healing compounds',
+                time: 18,
+                xp: 50,
+                costs: { energy: 20, oxygen: 10 },
+                effects: { health: 40 },
+                persistent: true,
+                masteryBonus: 0.2
+            }
+        };
+
+        const deathMessages = {
+            oxygen: [
+                "The air grew thin. Your lungs burned. Darkness.",
+                "Gasping for breath, you collapsed. The station wins again.",
+                "Hypoxia claimed you. The cycle continues."
+            ],
+            energy: [
+                "Exhaustion overwhelmed you. Your body gave out.",
+                "Too tired to go on. You fell into eternal sleep.",
+                "Your energy depleted. Systems offline. Loop initiated."
+            ],
+            health: [
+                "Critical injuries proved fatal. Time to try again.",
+                "Your body failed. But your knowledge persists.",
+                "Death came quickly. The loop resets."
+            ]
+        };
+
+        function addLog(message, type = 'normal') {
+            const log = document.getElementById('logContainer');
+            const entry = document.createElement('div');
+            entry.className = `log-entry ${type}`;
+            const timestamp = `[${Math.floor(gameState.time)}s]`;
+            entry.textContent = `${timestamp} ${message}`;
+            log.insertBefore(entry, log.firstChild);
+            
+            if (log.children.length > 50) {
+                log.removeChild(log.lastChild);
+            }
+        }
+
+        function updateDisplay() {
+            document.getElementById('oxygen').textContent = Math.floor(gameState.oxygen);
+            document.getElementById('energy').textContent = Math.floor(gameState.energy);
+            document.getElementById('health').textContent = Math.floor(gameState.health);
+            document.getElementById('loopNumber').textContent = gameState.loopNumber;
+            document.getElementById('survivalTime').textContent = Math.floor(gameState.time);
+            document.getElementById('totalXp').textContent = gameState.totalXp;
+
+            document.getElementById('oxygenBar').style.width = gameState.oxygen + '%';
+            document.getElementById('energyBar').style.width = gameState.energy + '%';
+            document.getElementById('healthBar').style.width = gameState.health + '%';
+
+            const oxygenStat = document.getElementById('oxygenStat');
+            const energyStat = document.getElementById('energyStat');
+            const healthStat = document.getElementById('healthStat');
+
+            oxygenStat.classList.toggle('critical', gameState.oxygen < 20);
+            energyStat.classList.toggle('critical', gameState.energy < 20);
+            healthStat.classList.toggle('critical', gameState.health < 20);
+
+            updateQueueDisplay();
+            renderActions();
+
+            if (gameState.loopNumber >= 2) {
+                document.getElementById('loopBtn').style.display = 'inline-block';
+            }
+        }
+
+        function updateQueueDisplay() {
+            const queueDisplay = document.getElementById('queueDisplay');
+            const currentActionDiv = document.getElementById('currentAction');
+            const queueList = document.getElementById('queueList');
+
+            if (gameState.currentAction || gameState.queue.length > 0) {
+                queueDisplay.style.display = 'block';
+                
+                if (gameState.currentAction) {
+                    const action = actions[gameState.currentAction];
+                    const percent = (gameState.currentActionProgress / action.time) * 100;
+                    currentActionDiv.style.display = 'block';
+                    currentActionDiv.innerHTML = `${action.name} (${gameState.currentActionProgress.toFixed(1)}s / ${action.time}s)<div class="progress-bar" style="margin-top: 5px;"><div class="progress-fill" style="width: ${percent}%; background: #ffb703;"></div></div>`;
+                } else {
+                    currentActionDiv.style.display = 'none';
+                }
+
+                queueList.innerHTML = '';
+                gameState.queue.forEach((actionId, i) => {
+                    const action = actions[actionId];
+                    const item = document.createElement('div');
+                    item.className = 'queue-item';
+                    item.innerHTML = `<span>${i + 1}. ${action.name}</span><span>${action.time}s</span>`;
+                    queueList.appendChild(item);
+                });
+            } else {
+                queueDisplay.style.display = 'none';
+            }
+        }
+
+        function renderActions() {
+            const container = document.getElementById('actionsContainer');
+            container.innerHTML = '';
+
+            Object.values(actions).forEach(action => {
+                if (!gameState.unlockedActions.has(action.id)) return;
+
+                const card = document.createElement('div');
+                card.className = 'action-card';
+                
+                const canAfford = checkCosts(action);
+                if (!canAfford) {
+                    card.classList.add('locked');
+                }
+
+                if (gameState.queue.includes(action.id)) {
+                    card.classList.add('queued');
+                }
+
+                const mastery = gameState.actionMastery[action.id] || 0;
+                const timeReduction = action.persistent ? (1 - mastery * (action.masteryBonus || 0)) : 1;
+                const actualTime = (action.time * timeReduction).toFixed(1);
+
+                card.innerHTML = `
+                    <div class="action-title">${action.name}</div>
+                    <div class="action-desc">${action.desc}</div>
+                    ${mastery > 0 ? `<div class="mastery-indicator">Mastery: ${mastery} (${(mastery * (action.masteryBonus || 0) * 100).toFixed(0)}% faster)</div>` : ''}
+                    <div class="action-info">
+                        <span class="action-time">⏱ ${actualTime}s</span>
+                        <span class="action-xp">✨ ${action.xp} XP</span>
+                    </div>
+                `;
+
+                card.onclick = () => {
+                    if (canAfford) {
+                        queueAction(action.id);
+                    }
+                };
+
+                container.appendChild(card);
+            });
+        }
+
+        function checkCosts(action) {
+            if (!action.costs) return true;
+            for (let [resource, amount] of Object.entries(action.costs)) {
+                if (gameState[resource] < amount) return false;
+            }
+            return true;
+        }
+
+        function queueAction(actionId) {
+            gameState.queue.push(actionId);
+            addLog(`Queued: ${actions[actionId].name}`);
+            updateDisplay();
+        }
+
+        function clearQueue() {
+            gameState.queue = [];
+            addLog('Queue cleared');
+            updateDisplay();
+        }
+
+        function processAction(action) {
+            if (action.costs) {
+                for (let [resource, amount] of Object.entries(action.costs)) {
+                    gameState[resource] -= amount;
+                }
+            }
+
+            if (action.effects) {
+                for (let [resource, amount] of Object.entries(action.effects)) {
+                    gameState[resource] = Math.min(100, gameState[resource] + amount);
+                }
+            }
+
+            gameState.totalXp += action.xp;
+            gameState.actionsCompleted++;
+
+            if (action.persistent) {
+                gameState.actionMastery[action.id] = (gameState.actionMastery[action.id] || 0) + 1;
+            }
+
+            if (action.unlocks) {
+                action.unlocks.forEach(id => {
+                    if (!gameState.unlockedActions.has(id)) {
+                        gameState.unlockedActions.add(id);
+                        addLog(`NEW ACTION UNLOCKED: ${actions[id].name}`, 'level');
+                    }
+                });
+            }
+
+            addLog(`Completed: ${action.name}`);
+        }
+
+        function gameLoop() {
+            if (gameState.isPaused) return;
+
+            const delta = 0.1;
+            gameState.time += delta;
+
+            gameState.oxygen -= 0.15 * delta;
+            gameState.energy -= 0.1 * delta;
+
+            if (gameState.currentAction) {
+                const action = actions[gameState.currentAction];
+                const mastery = gameState.actionMastery[action.id] || 0;
+                const timeReduction = action.persistent ? (1 - mastery * (action.masteryBonus || 0)) : 1;
+                const actualTime = action.time * timeReduction;
+
+                gameState.currentActionProgress += delta;
+
+                if (gameState.currentActionProgress >= actualTime) {
+                    processAction(action);
+                    gameState.currentAction = null;
+                    gameState.currentActionProgress = 0;
+                }
+            } else if (gameState.queue.length > 0) {
+                const nextActionId = gameState.queue.shift();
+                const action = actions[nextActionId];
+                
+                if (checkCosts(action)) {
+                    gameState.currentAction = nextActionId;
+                    gameState.currentActionProgress = 0;
+                    addLog(`Started: ${action.name}`);
+                } else {
+                    addLog(`Cannot afford: ${action.name}`, 'death');
+                }
+            }
+
+            if (gameState.oxygen <= 0) {
+                die('oxygen');
+            } else if (gameState.energy <= 0) {
+                die('energy');
+            } else if (gameState.health <= 0) {
+                die('health');
+            }
+
+            updateDisplay();
+        }
+
+        function die(cause) {
+            gameState.isPaused = true;
+            
+            const messages = deathMessages[cause];
+            const message = messages[Math.floor(Math.random() * messages.length)];
+            
+            document.getElementById('deathMessage').textContent = message;
+            document.getElementById('deathTime').textContent = Math.floor(gameState.time);
+            document.getElementById('deathActions').textContent = gameState.actionsCompleted;
+            document.getElementById('deathXp').textContent = Math.floor(gameState.totalXp * 0.1);
+            
+            document.getElementById('deathOverlay').classList.add('show');
+        }
+
+        function startNewLoop() {
+            document.getElementById('deathOverlay').classList.remove('show');
+            
+            gameState.loopNumber++;
+            gameState.oxygen = 100;
+            gameState.energy = 100;
+            gameState.health = 100;
+            gameState.time = 0;
+            gameState.actionsCompleted = 0;
+            gameState.currentAction = null;
+            gameState.currentActionProgress = 0;
+            gameState.queue = [];
+            gameState.isPaused = false;
+
+            addLog('=== NEW LOOP STARTED ===', 'level');
+            addLog(`Loop #${gameState.loopNumber} - All mastery and XP retained`);
+            updateDisplay();
+        }
+
+        function pauseGame() {
+            gameState.isPaused = !gameState.isPaused;
+            const btn = event.target;
+            btn.textContent = gameState.isPaused ? '▶ Resume' : '⏸ Pause';
+            addLog(gameState.isPaused ? 'Game paused' : 'Game resumed');
+        }
+
+        function loopNow() {
+            if (confirm('Reset now and start a new loop? You will keep all mastery and XP.')) {
+                die('oxygen');
+            }
+        }
+
+        addLog('Systems online. Survival protocol initiated.');
+        addLog('Oxygen levels critical. Find a way to survive.');
+        
+        setInterval(gameLoop, 100);
+        updateDisplay();
+    </script>
+</body>
+</html>
